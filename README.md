@@ -169,3 +169,56 @@ public UserDetailsService userDetailsService() {
 - Spring Authorization Server: https://github.com/spring-projects/spring-authorization-server
 - OAuth2.1 / OIDC: https://openid.net/connect/
 - Spring Security OAuth2 客户端: https://docs.spring.io/spring-security/reference/servlet/oauth2/client/index.html
+
+# ✅ 如何正确传 client_id 和 client_secret（三种方式）
+- 以下任选其一，但不能混用错位置。
+
+## ✅ 方式 1：使用 HTTP Basic Auth（推荐，Spring 默认）
+
+Postman 设置：
+- Authorization → 类型选择 Basic Auth
+
+- 输入：
+Username = client_id（比如 message）
+Password = client_secret（比如 123456）
+这会自动添加请求头：
+```http request
+Authorization: Basic base64(client_id:client_secret)
+```
+
+## ✅ 方式 2：用表单参数（x-www-form-urlencoded）
+```http request
+POST /oauth2/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code
+code=xxx
+client_id=message
+client_secret=123456
+...
+
+```
+适用于客户端认证方式是 client_secret_post。
+
+## ✅ 方式 3：公共客户端（不传 secret）→ 设置为 none
+适合 SPA、小程序等前端应用，数据库配置必须如下：
+- client_authentication_methods = none
+- require-proof-key = true
+  
+此时请求 /oauth2/token 时：
+```http request
+grant_type=authorization_code
+client_id=message
+code=xxx
+redirect_uri=...
+code_verifier=...
+
+```
+不传 client_secret，不会报 invalid_client。
+
+## ✅ 总结
+| 使用方式                                                | client\_secret 必须传？ | 推荐场景              |
+| --------------------------------------------------- | ------------------- | ----------------- |
+| Basic Auth (client\_secret\_basic)                  | ✅ 必须                | 后端服务、可信客户端        |
+| Form 表单参数 (client\_secret\_post)                    | ✅ 必须                | 非浏览器或 CLI 客户端     |
+| Public 客户端 (client\_authentication\_methods = none) | ❌ 不需要               | 前端、SPA、小程序 + PKCE |
